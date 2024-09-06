@@ -1,7 +1,7 @@
 import "dotenv/config";
 import "./tracing";
 
-import Translator from "@azure-rest/ai-translation-document";
+import Translator, { isUnexpected } from "@azure-rest/ai-translation-document";
 import { DefaultAzureCredential } from "@azure/identity";
 
 import { trace, context } from "@opentelemetry/api";
@@ -14,12 +14,14 @@ const client = Translator(
 async function main() {
   const tracer = trace.getTracer("main");
   await tracer.startActiveSpan("main", async (span) => {
-    span.setAttribute("customAttribute", "customValue");
-
     const formats = await client
       .path("/document/formats")
       .get({ tracingOptions: { tracingContext: context.active() } });
-    console.log({ formats });
+    if (isUnexpected(formats)) {
+      throw new Error("Unexpected response");
+    }
+
+    span.end();
   });
 }
 
